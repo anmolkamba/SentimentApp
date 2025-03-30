@@ -20,37 +20,41 @@ class MLPredictor:
         """Prepare data for machine learning models"""
         if self.data is None or self.data.empty:
             return None, None
-            
+
         # Create features
         features = pd.DataFrame()
-        
+
         # Technical indicators
         features['RSI'] = self.data['RSI']
         features['MACD'] = self.data['MACD']
-        features['BB_Upper'] = self.data['BB_Upper']
-        features['BB_Lower'] = self.data['BB_Lower']
-        
+        # features['BB_Upper'] = self.data['BB_Upper']
+        # features['BB_Lower'] = self.data['BB_Lower']
+
         # Price-based features
         features['Price_Change'] = self.data['Close'].pct_change()
         features['Volume_Change'] = self.data['Volume'].pct_change()
         features['High_Low_Range'] = (self.data['High'] - self.data['Low']) / self.data['Close']
-        
+
         # Moving averages
         features['SMA_20'] = self.data['SMA_20']
         features['SMA_50'] = self.data['SMA_50']
-        
+
         # Remove NaN values
         features = features.dropna()
-        
+
+        # Create target variable (next day's closing price)
+        target = self.data['Close'].shift(-1)
+
+        # Align features and target by dropping rows with NaN in either
+        aligned_data = pd.concat([features, target], axis=1).dropna()
+
+        # Separate aligned features and target
+        features = aligned_data.iloc[:, :-1]
+        target = aligned_data.iloc[:, -1]
+
         # Scale features
         scaled_features = self.scaler.fit_transform(features)
-        
-        # Create target variable (next day's closing price)
-        target = self.data['Close'].shift(-1).dropna()
-        
-        # Align features and target
-        scaled_features = scaled_features[:-1]
-        
+
         return scaled_features, target
     
     def train_random_forest(self):
@@ -58,7 +62,9 @@ class MLPredictor:
         X, y = self.prepare_data()
         if X is None or y is None:
             return None
-            
+        # print(f"Shape of X: {X.shape}")
+        # print(f"Shape of y: {y.shape}")
+        # sys.exit("File Error") #exit with a string message
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
